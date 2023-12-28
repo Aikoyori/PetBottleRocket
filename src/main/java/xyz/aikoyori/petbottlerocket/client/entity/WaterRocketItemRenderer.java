@@ -15,6 +15,8 @@ public class WaterRocketItemRenderer implements BuiltinItemRendererRegistry.Dyna
     public void render(ItemStack stack, ModelTransformationMode mode, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, int overlay) {
         EntityRenderDispatcher entityRenderDispatcher = MinecraftClient.getInstance().getEntityRenderDispatcher();
         WaterRocketEntity waterRocketEntity = new WaterRocketEntity(PetbottleRocket.WATER_ROCKET_ENTITY, MinecraftClient.getInstance().world);
+        waterRocketEntity.getDataTracker().set(WaterRocketEntity.FUEL,stack.getOrCreateNbt().getInt("fuel"));
+        waterRocketEntity.getDataTracker().set(WaterRocketEntity.MAX_FUEL,stack.getOrCreateNbt().getInt("max_fuel"));
 
         waterRocketEntity.setPitch(-90f);
         entityRenderDispatcher.render(waterRocketEntity, 0.0d, 0.0d, 0.0d, 0.0F, 1.0F, matrices, vertexConsumers, light);

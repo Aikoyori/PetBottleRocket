@@ -1,33 +1,72 @@
 package xyz.aikoyori.petbottlerocket.entity;
 
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.MovementType;
+import net.minecraft.entity.*;
 import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.damage.DamageType;
 import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.data.TrackedData;
 import net.minecraft.entity.data.TrackedDataHandlerRegistry;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.EntityHitResult;
+import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
+import org.jetbrains.annotations.Nullable;
 import xyz.aikoyori.petbottlerocket.PetbottleRocket;
 import xyz.aikoyori.petbottlerocket.utils.ModUtils;
 
+import java.util.ConcurrentModificationException;
 import java.util.Objects;
+import java.util.UUID;
 
-public class WaterRocketEntity extends Entity {
+public class WaterRocketEntity extends Entity implements Ownable {
     public static final TrackedData<Boolean> START_FLYING = DataTracker.registerData(WaterRocketEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+    public static final TrackedData<Boolean> DROP_ITEMS = DataTracker.registerData(WaterRocketEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
     public static final TrackedData<Integer> FUEL = DataTracker.registerData(WaterRocketEntity.class, TrackedDataHandlerRegistry.INTEGER);
     public static final TrackedData<Integer> MAX_FUEL = DataTracker.registerData(WaterRocketEntity.class, TrackedDataHandlerRegistry.INTEGER);
     public static final TrackedData<Integer> FLY_TICK = DataTracker.registerData(WaterRocketEntity.class, TrackedDataHandlerRegistry.INTEGER);
 
+    public float prevFuel = 7;
+    public float prevFlyTick = 0;
+
+    @Nullable
+    private UUID ownerUuid;
+    @Nullable
+    private Entity owner;
+
+
     public WaterRocketEntity(EntityType<?> type, World world) {
         super(type, world);
+        prevPitch = -90;
         this.setPitch(-90f);
     }
+    public static WaterRocketEntity makeRocket(World world, double x, double y, double z, float yaw, float pitch) {
+        WaterRocketEntity waterRocketEntity = new WaterRocketEntity(PetbottleRocket.WATER_ROCKET_ENTITY, world);
+        waterRocketEntity.prevPitch = pitch;
+        waterRocketEntity.prevYaw = yaw;
+        waterRocketEntity.prevX = x;
+        waterRocketEntity.prevY = y;
+        waterRocketEntity.prevZ = z;
+        waterRocketEntity.setRotation(yaw, pitch);
+        waterRocketEntity.setPosition(x,y,z);
+        return waterRocketEntity;
+    }
+    public static WaterRocketEntity makeRocket(World world, Vec3d pos, float yaw, float pitch) {
+        return makeRocket(world,pos.getX(),pos.getY(),pos.getZ(),yaw,pitch);
+    }
+
 
     @Override
     public boolean canHit() {
@@ -41,7 +80,14 @@ public class WaterRocketEntity extends Entity {
 
     @Override
     public boolean damage(DamageSource source, float amount) {
-        if(source.getAttacker()!=null && source.getAttacker().isPlayer()){
+        if(source.getAttacker()!=null && source.getAttacker().isPlayer() && !getDataTracker().get(START_FLYING)){
+            PlayerEntity player = (PlayerEntity) source.getAttacker();
+
+            if(!player.isCreative()){
+                ItemStack stack = new ItemStack(PetbottleRocket.WATER_ROCKET_ITEM);
+
+                this.dropStack(stack);
+            }
             this.discard();
             return true;
         }
@@ -50,16 +96,46 @@ public class WaterRocketEntity extends Entity {
 
     @Override
     public void tick() {
+        this.prevFuel = getDataTracker().get(FUEL);
+        this.prevPitch=this.getPitch();
+        this.prevFlyTick=this.dataTracker.get(FLY_TICK);
+        this.prevYaw=this.getYaw();
         super.tick();
         this.addVelocity(new Vec3d(0,-0.07f,0));
         if(!this.isOnGround())
         {
 
             dataTracker.set(FLY_TICK,dataTracker.get(FLY_TICK)+1);
+            if(this.getDataTracker().get(FUEL)+1==this.getDataTracker().get(MAX_FUEL) && this.getDataTracker().get(START_FLYING)){
+                this.playSound(SoundEvents.ENTITY_FIREWORK_ROCKET_LAUNCH,1,0);
+
+            }
+            if(this.getDataTracker().get(FUEL)>0 && this.getDataTracker().get(START_FLYING)){
+                for(int i=0;i<=20;i++)
+                {
+
+                    getWorld().addParticle(ParticleTypes.SPLASH,getPos().getX(),getPos().getY(),getPos().getZ(),
+                            ModUtils.getRandomCenterZeroFloat(random,1),
+                            ModUtils.getRandomCenterZeroFloat(random,1),
+                            ModUtils.getRandomCenterZeroFloat(random,1));
+                }
+
+            }
 
             //if(MinecraftClient.getInstance().player!=null)MinecraftClient.getInstance().player.sendMessage(Text.literal("GET TROLLED "+dataTracker.get(FLY_TICK)));
         }
         else {
+            if(this.getDataTracker().get(START_FLYING) && this.getDataTracker().get(FUEL)==0 ){
+                if(getDataTracker().get(DROP_ITEMS))
+                {
+
+                    this.dropStack(new ItemStack(PetbottleRocket.PLASTIC_SCRAP_ITEM,4));
+                    this.dropStack(new ItemStack(Items.PAPER,6));
+                }
+                this.playSound(SoundEvents.ENTITY_ZOMBIE_BREAK_WOODEN_DOOR,3,2);
+                this.discard();
+
+            }
             this.setVelocity(new Vec3d(0,this.getVelocity().y,0));
 
         }
@@ -75,12 +151,37 @@ public class WaterRocketEntity extends Entity {
             if(this.getDataTracker().get(FUEL) > 0)
             {
                 this.getDataTracker().set(FUEL,this.getDataTracker().get(FUEL) - 1);
-                this.setVelocity(this.getVelocity().add(new Vec3d(0,0.08,0)).multiply(1.25));
+                this.setYaw(this.getYaw()+ModUtils.getRandomCenterZeroFloat(random,18.5f));
+                this.setPitch(this.getPitch()+ModUtils.getRandomCenterZeroFloat(random,18.5f));
+                this.setVelocity(this.getVelocity().add(this.getRotationVector().normalize().multiply(0.15)));
+                //this.setVelocity(this.getVelocity().add(ModUtils.getXYDeviation(random,0.1)).multiply(ModUtils.getRamdomUpVector(random,1.1).multiply(1.0,0.45,1.0).add(1.01,0.55,1.01)));
             }
         }
 
+
         this.velocityDirty = true;
-        move(MovementType.SELF,this.getVelocity());
+        Vec3d vel = this.getVelocity();
+        try{
+
+            move(MovementType.SELF,vel);
+        }
+        catch (ConcurrentModificationException concurrent){
+
+        }
+    }
+
+    @Override
+    public boolean collidesWith(Entity other) {
+        if(other.canHit() && other.canBeHitByProjectile() && this.getDataTracker().get(START_FLYING))
+        {
+
+            other.damage(ModUtils.damageOf(getWorld(),PetbottleRocket.ROCKET_HIT_DAMAGE,this,owner), (float) (2f*this.getVelocity().length()));
+            if(other instanceof LivingEntity living)
+            {
+                living.takeKnockback(2,this.getRotationVector().multiply(-1).x,this.getRotationVector().multiply(-1).z);
+            }
+        }
+        return super.collidesWith(other);
     }
 
     @Override
@@ -88,9 +189,32 @@ public class WaterRocketEntity extends Entity {
         return true;
     }
 
+    @Nullable
+    @Override
+    public ItemStack getPickBlockStack() {
+        return new ItemStack(PetbottleRocket.WATER_ROCKET_ITEM);
+    }
+
+    @Override
+    public ActionResult interact(PlayerEntity player, Hand hand) {
+        if(player.getStackInHand(hand).isEmpty()&&player.isSneaking() && !getDataTracker().get(START_FLYING))
+        {
+            if(!player.isCreative())
+            {
+                player.giveItemStack(new ItemStack(PetbottleRocket.BOTTLE_CAP_ITEM));
+            }
+            this.getDataTracker().set(START_FLYING,true);
+            this.getDataTracker().set(DROP_ITEMS,!player.isCreative());
+            this.setVelocity(ModUtils.getRandomCenterZeroFloat(random,1.4f),1,ModUtils.getRandomCenterZeroFloat(random,1.4f));
+            return ActionResult.SUCCESS;
+        }
+        return super.interact(player, hand);
+    }
+
     @Override
     protected void initDataTracker() {
         dataTracker.startTracking(START_FLYING,false);
+        dataTracker.startTracking(DROP_ITEMS,true);
         dataTracker.startTracking(FUEL,7);
         dataTracker.startTracking(MAX_FUEL,7);
         dataTracker.startTracking(FLY_TICK,0);
@@ -99,16 +223,50 @@ public class WaterRocketEntity extends Entity {
     @Override
     protected void readCustomDataFromNbt(NbtCompound nbt) {
         dataTracker.set(START_FLYING,nbt.getBoolean("started_flying"));
+        dataTracker.set(DROP_ITEMS,nbt.getBoolean("drop_items"));
         dataTracker.set(FUEL,nbt.getInt("fuel"));
         dataTracker.set(MAX_FUEL,nbt.getInt("max_fuel"));
         dataTracker.set(FLY_TICK,nbt.getInt("fly_tick"));
+        if (nbt.containsUuid("Owner")) {
+            this.ownerUuid = nbt.getUuid("Owner");
+            this.owner = null;
+        }
     }
 
     @Override
     protected void writeCustomDataToNbt(NbtCompound nbt) {
         nbt.putBoolean("started_flying",dataTracker.get(START_FLYING));
+        nbt.putBoolean("drop_items",dataTracker.get(DROP_ITEMS));
         nbt.putInt("fuel",dataTracker.get(FUEL));
         nbt.putInt("max_fuel",dataTracker.get(MAX_FUEL));
         nbt.putInt("fly_tick",dataTracker.get(FLY_TICK));
+        if (this.ownerUuid != null) {
+            nbt.putUuid("Owner", this.ownerUuid);
+        }
+    }
+
+    @Nullable
+    public Entity getOwner() {
+        if (this.owner != null && !this.owner.isRemoved()) {
+            return this.owner;
+        } else {
+            if (this.ownerUuid != null) {
+                World var2 = this.getWorld();
+                if (var2 instanceof ServerWorld) {
+                    ServerWorld serverWorld = (ServerWorld)var2;
+                    this.owner = serverWorld.getEntity(this.ownerUuid);
+                    return this.owner;
+                }
+            }
+
+            return null;
+        }
+    }
+    public void setOwner(@Nullable Entity entity) {
+        if (entity != null) {
+            this.ownerUuid = entity.getUuid();
+            this.owner = entity;
+        }
+
     }
 }

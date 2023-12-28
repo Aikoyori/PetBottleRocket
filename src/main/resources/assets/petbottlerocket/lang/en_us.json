@@ -1,4 +1,15 @@
 {
   "item.petbottlerocket.water_rocket": "Water Rocket",
-  "entity.petbottlerocket.water_rocket": "Water Rocket"
+  "item.petbottlerocket.plastic_scrap": "Plastic Scrap",
+  "item.petbottlerocket.bottle": "Bottle",
+  "item.petbottlerocket.bottle_cap": "Bottle Cap",
+  "item.petbottlerocket.rocket_cap": "Rocket Cap",
+  "item.petbottlerocket.fin": "Fin",
+  "item.petbottlerocket.capless_bottle": "Capless Bottle",
+  "item.petbottlerocket.capless_water_bottle": "Capless Plastic Water Bottle",
+  "item.petbottlerocket.water_bottle": "Plastic Water Bottle",
+  "entity.petbottlerocket.water_rocket": "Water Rocket",
+  "itemGroup.petbottlerocket.water_rocket": "PET Bottle Rocket",
+
+  "death.attack.rocket_hit": "%1$s got absolutely boosted"
 }
