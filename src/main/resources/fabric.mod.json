@@ -3,9 +3,10 @@
   "id": "petbottlerocket",
   "version": "${version}",
   "name": "PetbottleRocket",
-  "description": "",
-  "authors": [],
+  "description": "Make a Water Bottle Rocket! Inspired by STEM Learning.",
+  "authors": ["Aikoyori"],
   "contact": {
+    "issues": "https://github.com/Aikoyori/PetbottleRocket/issues",
     "repo": "https://github.com/Aikoyori/PetbottleRocket"
   },
   "license": "MIT",
