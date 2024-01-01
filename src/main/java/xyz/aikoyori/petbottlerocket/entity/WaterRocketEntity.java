@@ -1,5 +1,6 @@
 package xyz.aikoyori.petbottlerocket.entity;
 
+import net.minecraft.block.Block;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.*;
 import net.minecraft.entity.damage.DamageSource;
@@ -11,6 +12,8 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.particle.BlockStateParticleEffect;
+import net.minecraft.particle.ItemStackParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundEvents;
@@ -19,6 +22,7 @@ import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
@@ -32,11 +36,15 @@ import java.util.Objects;
 import java.util.UUID;
 
 public class WaterRocketEntity extends Entity implements Ownable {
+
+    private static float ANGLE_DEVIATION = 19.5f;
     public static final TrackedData<Boolean> START_FLYING = DataTracker.registerData(WaterRocketEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
     public static final TrackedData<Boolean> DROP_ITEMS = DataTracker.registerData(WaterRocketEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
     public static final TrackedData<Integer> FUEL = DataTracker.registerData(WaterRocketEntity.class, TrackedDataHandlerRegistry.INTEGER);
     public static final TrackedData<Integer> MAX_FUEL = DataTracker.registerData(WaterRocketEntity.class, TrackedDataHandlerRegistry.INTEGER);
     public static final TrackedData<Integer> FLY_TICK = DataTracker.registerData(WaterRocketEntity.class, TrackedDataHandlerRegistry.INTEGER);
+    public static final TrackedData<Float> RANDOM_YAW_ADD = DataTracker.registerData(WaterRocketEntity.class, TrackedDataHandlerRegistry.FLOAT);
+    public static final TrackedData<Float> RANDOM_PITCH_ADD = DataTracker.registerData(WaterRocketEntity.class, TrackedDataHandlerRegistry.FLOAT);
 
     public float prevFuel = 7;
     public float prevFlyTick = 0;
@@ -50,10 +58,12 @@ public class WaterRocketEntity extends Entity implements Ownable {
     public WaterRocketEntity(EntityType<?> type, World world) {
         super(type, world);
         prevPitch = -90;
+
         this.setPitch(-90f);
     }
-    public static WaterRocketEntity makeRocket(World world, double x, double y, double z, float yaw, float pitch) {
+    public static WaterRocketEntity makeRocket(World world, double x, double y, double z, float yaw, float pitch,Entity owner) {
         WaterRocketEntity waterRocketEntity = new WaterRocketEntity(PetbottleRocket.WATER_ROCKET_ENTITY, world);
+        waterRocketEntity.setOwner(owner);
         waterRocketEntity.prevPitch = pitch;
         waterRocketEntity.prevYaw = yaw;
         waterRocketEntity.prevX = x;
@@ -63,8 +73,11 @@ public class WaterRocketEntity extends Entity implements Ownable {
         waterRocketEntity.setPosition(x,y,z);
         return waterRocketEntity;
     }
+    public static WaterRocketEntity makeRocket(World world, Vec3d pos, float yaw, float pitch,Entity owner) {
+        return makeRocket(world,pos.getX(),pos.getY(),pos.getZ(),yaw,pitch,owner);
+    }
     public static WaterRocketEntity makeRocket(World world, Vec3d pos, float yaw, float pitch) {
-        return makeRocket(world,pos.getX(),pos.getY(),pos.getZ(),yaw,pitch);
+        return makeRocket(world,pos.getX(),pos.getY(),pos.getZ(),yaw,pitch,null);
     }
 
 
@@ -102,6 +115,12 @@ public class WaterRocketEntity extends Entity implements Ownable {
         this.prevYaw=this.getYaw();
         super.tick();
         this.addVelocity(new Vec3d(0,-0.07f,0));
+
+        Vec3d posget =  getPos().add(0,-this.getRotationVector().length()-0.5,0);
+        BlockPos pots = BlockPos.ofFloored(posget.x,posget.y,posget.z);
+
+        //this.setCustomName(Text.literal(getWorld().getBlockState(pots).toString() + " " + (this.getDataTracker().get(FUEL)).toString()));
+        //this.setCustomNameVisible(true);
         if(!this.isOnGround())
         {
 
@@ -125,12 +144,23 @@ public class WaterRocketEntity extends Entity implements Ownable {
             //if(MinecraftClient.getInstance().player!=null)MinecraftClient.getInstance().player.sendMessage(Text.literal("GET TROLLED "+dataTracker.get(FLY_TICK)));
         }
         else {
-            if(this.getDataTracker().get(START_FLYING) && this.getDataTracker().get(FUEL)==0 ){
+            if(this.getDataTracker().get(START_FLYING) && getVelocity().getY() < 0){
+
+                for(int i=0;i<20;i++)
+                {
+                    getWorld().addParticle(new ItemStackParticleEffect(ParticleTypes.ITEM,new ItemStack(PetbottleRocket.PLASTIC_SCRAP_ITEM)),
+                            prevX,prevY,prevZ,
+                            ModUtils.getRandomCenterZeroFloat(random,0.9f),
+                            ModUtils.getRandomCenterZeroFloat(random,0.9f),
+                            ModUtils.getRandomCenterZeroFloat(random,0.9f));
+                }
+            }
+
+            if(this.getDataTracker().get(START_FLYING) && this.getDataTracker().get(FUEL)<=1 ){
+
                 if(getDataTracker().get(DROP_ITEMS))
                 {
-
-                    this.dropStack(new ItemStack(PetbottleRocket.PLASTIC_SCRAP_ITEM,4));
-                    this.dropStack(new ItemStack(Items.PAPER,6));
+                    dropIngredients();
                 }
                 this.playSound(SoundEvents.ENTITY_ZOMBIE_BREAK_WOODEN_DOOR,1,2);
                 this.discard();
@@ -151,8 +181,9 @@ public class WaterRocketEntity extends Entity implements Ownable {
             if(this.getDataTracker().get(FUEL) > 0)
             {
                 this.getDataTracker().set(FUEL,this.getDataTracker().get(FUEL) - 1);
-                this.setYaw(this.getYaw()+ModUtils.getRandomCenterZeroFloat(random,18.5f));
-                this.setPitch(this.getPitch()+ModUtils.getRandomCenterZeroFloat(random,18.5f));
+
+                this.setYaw(this.getYaw()+this.getDataTracker().get(RANDOM_YAW_ADD));
+                this.setPitch(this.getPitch()+this.getDataTracker().get(RANDOM_PITCH_ADD));
                 this.setVelocity(this.getVelocity().add(this.getRotationVector().normalize().multiply(0.15)));
                 //this.setVelocity(this.getVelocity().add(ModUtils.getXYDeviation(random,0.1)).multiply(ModUtils.getRamdomUpVector(random,1.1).multiply(1.0,0.45,1.0).add(1.01,0.55,1.01)));
             }
@@ -169,16 +200,20 @@ public class WaterRocketEntity extends Entity implements Ownable {
 
         }
     }
-
+    
     @Override
     public boolean collidesWith(Entity other) {
         if(other.canHit() && other.canBeHitByProjectile() && this.getDataTracker().get(START_FLYING))
         {
 
-            other.damage(ModUtils.damageOf(getWorld(),PetbottleRocket.ROCKET_HIT_DAMAGE,this,owner), (float) (2f*this.getVelocity().length()));
-            if(other instanceof LivingEntity living)
+            if(!Objects.equals(other.getUuid(),ownerUuid)){
+                // don't do damage if owner
+                other.damage(ModUtils.damageOf(getWorld(),PetbottleRocket.ROCKET_HIT_DAMAGE,this,owner), (float) (2f*this.getVelocity().length()));
+            }
+            if(other instanceof LivingEntity living &&
+                    (!(Objects.equals(other.getUuid(),ownerUuid) || (other instanceof PlayerEntity && (other.isSneaking())))))
             {
-                living.takeKnockback(2,this.getRotationVector().multiply(-1).x,this.getRotationVector().multiply(-1).z);
+                living.takeKnockback(this.getVelocity().length()/2.0f,this.getRotationVector().multiply(-1).x,this.getRotationVector().multiply(-1).z);
             }
         }
         return super.collidesWith(other);
@@ -187,6 +222,12 @@ public class WaterRocketEntity extends Entity implements Ownable {
     @Override
     public boolean isPushable() {
         return true;
+    }
+
+    private void dropIngredients(){
+
+        this.dropStack(new ItemStack(PetbottleRocket.PLASTIC_SCRAP_ITEM,4));
+        this.dropStack(new ItemStack(Items.PAPER,6));
     }
 
     @Nullable
@@ -215,6 +256,8 @@ public class WaterRocketEntity extends Entity implements Ownable {
     protected void initDataTracker() {
         dataTracker.startTracking(START_FLYING,false);
         dataTracker.startTracking(DROP_ITEMS,true);
+        dataTracker.startTracking(RANDOM_YAW_ADD,ModUtils.getRandomCenterZeroFloat(random,ANGLE_DEVIATION));
+        dataTracker.startTracking(RANDOM_PITCH_ADD,ModUtils.getRandomCenterZeroFloat(random,ANGLE_DEVIATION));
         dataTracker.startTracking(FUEL,7);
         dataTracker.startTracking(MAX_FUEL,7);
         dataTracker.startTracking(FLY_TICK,0);

@@ -47,9 +47,10 @@ public class WaterRocketItem extends Item {
             {
                 user.giveItemStack(new ItemStack(PetbottleRocket.BOTTLE_CAP_ITEM));
             }
-            Vec3d pos = user.getEyePos().add(user.getRotationVector().normalize().multiply(0.75));
+            Vec3d pos = user.getEyePos().add(user.getRotationVector().normalize().multiply(0.5));
             WaterRocketEntity waterRocketEntity = WaterRocketEntity.makeRocket(world,pos
                     ,user.getYaw(),user.getPitch());
+            waterRocketEntity.setOwner(user);
             waterRocketEntity.setVelocity(user.getRotationVector().normalize().multiply(1));
             waterRocketEntity.getDataTracker().set(WaterRocketEntity.START_FLYING,true);
             waterRocketEntity.getDataTracker().set(WaterRocketEntity.DROP_ITEMS,!user.isCreative());
