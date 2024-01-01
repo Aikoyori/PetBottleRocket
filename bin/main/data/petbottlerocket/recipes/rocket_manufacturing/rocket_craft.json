@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "C  ",
+    " BF",
+    " F "
+  ],
+  "key": {
+    "C": {
+      "item": "petbottlerocket:rocket_cap"
+    },
+    "B": {
+      "item": "petbottlerocket:water_bottle"
+    },
+    "F": {
+      "item": "petbottlerocket:fin"
+    }
+  },
+  "result": {
+    "item": "petbottlerocket:water_rocket",
+    "count": 1
+  }
+}

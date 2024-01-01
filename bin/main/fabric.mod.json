@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "petbottlerocket",
+  "version": "${version}",
+  "name": "PetbottleRocket",
+  "description": "Make a Water Bottle Rocket! Inspired by STEM Learning.",
+  "authors": ["Aikoyori"],
+  "contact": {
+    "issues": "https://github.com/Aikoyori/PetbottleRocket/issues",
+    "repo": "https://github.com/Aikoyori/PetbottleRocket"
+  },
+  "license": "MIT",
+  "icon": "assets/petbottlerocket/pet_bottle_rocket.png",
+  "environment": "*",
+  "entrypoints": {
+    "client": [
+      "xyz.aikoyori.petbottlerocket.client.PetbottleRocketClient"
+    ],
+    "main": [
+      "xyz.aikoyori.petbottlerocket.PetbottleRocket"
+    ]
+  },
+  "mixins": [
+    "petbottlerocket.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">0.15.0",
+    "minecraft": "${minecraft_version}"
+  }
+}
