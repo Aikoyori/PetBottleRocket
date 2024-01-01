@@ -9,7 +9,7 @@
     "repo": "https://github.com/Aikoyori/PetbottleRocket"
   },
   "license": "MIT",
-  "icon": "assets/petbottlerocket/icon.png",
+  "icon": "assets/petbottlerocket/pet_bottle_rocket.png",
   "environment": "*",
   "entrypoints": {
     "client": [

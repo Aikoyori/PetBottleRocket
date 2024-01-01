@@ -132,7 +132,7 @@ public class WaterRocketEntity extends Entity implements Ownable {
                     this.dropStack(new ItemStack(PetbottleRocket.PLASTIC_SCRAP_ITEM,4));
                     this.dropStack(new ItemStack(Items.PAPER,6));
                 }
-                this.playSound(SoundEvents.ENTITY_ZOMBIE_BREAK_WOODEN_DOOR,3,2);
+                this.playSound(SoundEvents.ENTITY_ZOMBIE_BREAK_WOODEN_DOOR,1,2);
                 this.discard();
 
             }
