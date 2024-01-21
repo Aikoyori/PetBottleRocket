@@ -69,6 +69,12 @@ public class PetbottleRocket implements ModInitializer {
             GameRuleRegistry.register("petBottleRocket.allowRocketPlacementInAdventure", GameRules.Category.MISC, GameRuleFactory.createBooleanRule(false));
     public static final GameRules.Key<GameRules.BooleanRule> ALLOW_ROCKET_THROWING =
             GameRuleRegistry.register("petBottleRocket.allowRocketThrowing", GameRules.Category.MISC, GameRuleFactory.createBooleanRule(true));
+    public static final GameRules.Key<GameRules.BooleanRule> ALLOW_UNLIMITED_ROCKET_USAGE =
+            GameRuleRegistry.register("petBottleRocket.allowUnlimitedRocketUsage", GameRules.Category.MISC, GameRuleFactory.createBooleanRule(false));
+    public static final GameRules.Key<GameRules.IntRule> ROCKET_DEVIATION =
+            GameRuleRegistry.register("petBottleRocket.rocketDeviation", GameRules.Category.MISC, GameRuleFactory.createIntRule(6));
+    public static final GameRules.Key<GameRules.IntRule> ROCKET_COOLDOWN_TICKS =
+            GameRuleRegistry.register("petBottleRocket.rocketCooldownTicks", GameRules.Category.MISC, GameRuleFactory.createIntRule(1));
     public static final ItemGroup PET_BOTTLE_MOD_GROUP = FabricItemGroup.builder()
             .icon(()->new ItemStack(WATER_ROCKET_ITEM))
             .displayName(Text.translatable("itemGroup.petbottlerocket.water_rocket"))

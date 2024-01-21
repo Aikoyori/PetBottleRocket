@@ -18,5 +18,8 @@
   "gamerule.petBottleRocket.shouldRocketDealKnockbackToSelf": "Rocket Deals knockback to user",
   "gamerule.petBottleRocket.shouldRocketDealKnockbackToOthers": "Rocket Deals knockback to others",
   "gamerule.petBottleRocket.allowRocketPlacementInAdventure":  "Allows Rockets to be placed in Adventure Mode",
-  "gamerule.petBottleRocket.allowRocketThrowing": "Allows Rockets to be thrown"
+  "gamerule.petBottleRocket.allowRocketThrowing": "Allows Rockets to be thrown",
+  "gamerule.petBottleRocket.allowUnlimitedRocketUsage": "Allows Rockets to be used infinitely",
+  "gamerule.petBottleRocket.rocketDeviation": "Rocket deviation angle",
+  "gamerule.petBottleRocket.rocketCooldownTicks": "Rocket throwing cooldown ticks"
 }

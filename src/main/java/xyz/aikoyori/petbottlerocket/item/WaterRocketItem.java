@@ -1,5 +1,6 @@
 package xyz.aikoyori.petbottlerocket.item;
 
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -37,18 +38,46 @@ public class WaterRocketItem extends Item {
         {
             waterRocketEntity.getDataTracker().set(WaterRocketEntity.DROP_ITEMS,!context.getPlayer().isCreative());
         }
-        context.getStack().decrement(1);
+        if(!context.getWorld().getGameRules().getBoolean(PetbottleRocket.ALLOW_UNLIMITED_ROCKET_USAGE) && !context.getPlayer().isCreative() && !context.getWorld().isClient())
+        {
+            context.getPlayer().getStackInHand(context.getHand()).decrement(1);
+        }
         return ActionResult.SUCCESS;
     }
 
     @Override
     public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
         HitResult hitResult = raycast(world, user, RaycastContext.FluidHandling.NONE);
+        boolean didsomething = false;
+        if(world.isClient())
+            return TypedActionResult.pass(user.getStackInHand(hand));
         if(user.getStackInHand(hand).getItem() == PetbottleRocket.WATER_ROCKET_ITEM  )
         {
-            if(world.getGameRules().getBoolean(PetbottleRocket.ALLOW_ROCKET_THROWING))
+
+            if(world.getGameRules().getBoolean(PetbottleRocket.ALLOW_ROCKET_PLACEMENT_IN_ADVENTURE) && !user.getAbilities().allowModifyWorld)
             {
-                if(!user.isCreative() && world.getGameRules().getBoolean(PetbottleRocket.SHOULD_ROCKET_DROP_MATERIALS))
+                if(hitResult.getType() == HitResult.Type.BLOCK)
+                {
+                    BlockHitResult bhr = (BlockHitResult) hitResult;
+                    Vec3d pos = bhr.getBlockPos().add(bhr.getSide().getVector()).toCenterPos();
+
+                    WaterRocketEntity waterRocketEntity = WaterRocketEntity.makeRocket(world,pos
+                            ,0,-90);
+                    waterRocketEntity.getDataTracker().set(WaterRocketEntity.DROP_ITEMS,!user.isCreative());
+                    waterRocketEntity.getDataTracker().set(WaterRocketEntity.ALLOW_ADVENTURE,true);
+                    world.spawnEntity(waterRocketEntity);
+                    //world.playSound(pos.x,pos.y,pos.z, SoundEvents.ENTITY_ARROW_SHOOT, SoundCategory.NEUTRAL,4,1,true);
+                    if(!world.getGameRules().getBoolean(PetbottleRocket.ALLOW_UNLIMITED_ROCKET_USAGE) && !user.isCreative() && !world.isClient())
+                    {
+                        user.getStackInHand(hand).decrement(1);
+                    }
+                    //user.setStackInHand(hand,)));
+                    didsomething = true;
+                }
+            }
+            if(world.getGameRules().getBoolean(PetbottleRocket.ALLOW_ROCKET_THROWING) && !didsomething)
+            {
+                if(!user.isCreative() && world.getGameRules().getBoolean(PetbottleRocket.SHOULD_ROCKET_DROP_MATERIALS)&& !world.isClient())
                 {
                     user.giveItemStack(new ItemStack(PetbottleRocket.BOTTLE_CAP_ITEM));
                 }
@@ -60,28 +89,19 @@ public class WaterRocketItem extends Item {
                 waterRocketEntity.getDataTracker().set(WaterRocketEntity.START_FLYING,true);
                 waterRocketEntity.getDataTracker().set(WaterRocketEntity.DROP_ITEMS,!user.isCreative());
                 world.spawnEntity(waterRocketEntity);
-                world.playSound(pos.x,pos.y,pos.z, SoundEvents.ENTITY_ARROW_SHOOT, SoundCategory.NEUTRAL,4,1,true);
-                user.getStackInHand(hand).decrement(1);
-                //user.setStackInHand(hand,)));
-                return TypedActionResult.success(user.getStackInHand(hand));
-            }
-            if(world.getGameRules().getBoolean(PetbottleRocket.ALLOW_ROCKET_PLACEMENT_IN_ADVENTURE) && !user.getAbilities().allowModifyWorld)
-            {
-                if(hitResult.getType() == HitResult.Type.BLOCK)
+                user.getItemCooldownManager().set(this,world.getGameRules().getInt(PetbottleRocket.ROCKET_COOLDOWN_TICKS));
+                //world.playSound(pos.x,pos.y,pos.z, SoundEvents.ENTITY_ARROW_SHOOT, SoundCategory.NEUTRAL,4,1,true);
+                if(!world.getGameRules().getBoolean(PetbottleRocket.ALLOW_UNLIMITED_ROCKET_USAGE) && !user.isCreative()&& !world.isClient())
                 {
-                    BlockHitResult bhr = (BlockHitResult) hitResult;
-                    Vec3d pos = bhr.getBlockPos().add(bhr.getSide().getVector()).toCenterPos();
-
-                    WaterRocketEntity waterRocketEntity = WaterRocketEntity.makeRocket(world,pos
-                            ,0,-90);
-                    waterRocketEntity.setOwner(user);
-                    waterRocketEntity.getDataTracker().set(WaterRocketEntity.DROP_ITEMS,!user.isCreative());
-                    world.spawnEntity(waterRocketEntity);
-                    world.playSound(pos.x,pos.y,pos.z, SoundEvents.ENTITY_ARROW_SHOOT, SoundCategory.NEUTRAL,4,1,true);
                     user.getStackInHand(hand).decrement(1);
-                    //user.setStackInHand(hand,)));
-                    return TypedActionResult.success(user.getStackInHand(hand));
                 }
+                didsomething = true;
+                //user.setStackInHand(hand,)));
+            }
+            if(didsomething)
+            {
+
+                return TypedActionResult.success(user.getStackInHand(hand));
             }
         }
         return super.use(world, user, hand);

@@ -12,9 +12,11 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket;
 import net.minecraft.particle.BlockStateParticleEffect;
 import net.minecraft.particle.ItemStackParticleEffect;
 import net.minecraft.particle.ParticleTypes;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
@@ -37,8 +39,9 @@ import java.util.UUID;
 
 public class WaterRocketEntity extends Entity implements Ownable {
 
-    private static float ANGLE_DEVIATION = 19.5f;
+    private float ANGLE_DEVIATION = 7.5f;
     public static final TrackedData<Boolean> START_FLYING = DataTracker.registerData(WaterRocketEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+    public static final TrackedData<Boolean> ALLOW_ADVENTURE = DataTracker.registerData(WaterRocketEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
     public static final TrackedData<Boolean> DROP_ITEMS = DataTracker.registerData(WaterRocketEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
     public static final TrackedData<Integer> FUEL = DataTracker.registerData(WaterRocketEntity.class, TrackedDataHandlerRegistry.INTEGER);
     public static final TrackedData<Integer> MAX_FUEL = DataTracker.registerData(WaterRocketEntity.class, TrackedDataHandlerRegistry.INTEGER);
@@ -62,6 +65,7 @@ public class WaterRocketEntity extends Entity implements Ownable {
         this.setPitch(-90f);
     }
     public static WaterRocketEntity makeRocket(World world, double x, double y, double z, float yaw, float pitch,Entity owner) {
+
         WaterRocketEntity waterRocketEntity = new WaterRocketEntity(PetbottleRocket.WATER_ROCKET_ENTITY, world);
         waterRocketEntity.setOwner(owner);
         waterRocketEntity.prevPitch = pitch;
@@ -210,12 +214,35 @@ public class WaterRocketEntity extends Entity implements Ownable {
                 // don't do damage if owner
                 other.damage(ModUtils.damageOf(getWorld(),PetbottleRocket.ROCKET_HIT_DAMAGE,this,owner), (float) (2f*this.getVelocity().length()));
             }
-            if(other instanceof LivingEntity living &&
-                    ((!(Objects.equals(other.getUuid(),ownerUuid) && getWorld().getGameRules().getBoolean(PetbottleRocket.SHOULD_ROCKET_DEAL_KNOCKBACK_OTHERS))
-                            || (other instanceof PlayerEntity && (other.isSneaking())  && getWorld().getGameRules().getBoolean(PetbottleRocket.SHOULD_ROCKET_DEAL_KNOCKBACK_SELF))
-                    )))
+            if(other instanceof LivingEntity living)
             {
-                living.takeKnockback(this.getVelocity().length()/2.0f,this.getRotationVector().multiply(-1).x,this.getRotationVector().multiply(-1).z);
+                if(!(Objects.equals(other.getUuid(),ownerUuid)))
+                {
+                    if(getWorld().getGameRules().getBoolean(PetbottleRocket.SHOULD_ROCKET_DEAL_KNOCKBACK_OTHERS) &&  !getWorld().isClient())
+                    {
+                        living.takeKnockback(this.getVelocity().length()/2.0f,this.getRotationVector().multiply(-1).x,this.getRotationVector().multiply(-1).z);
+                        living.updateTrackedPosition(living.getX(),living.getY(),living.getZ());
+                        //living.updateVelocity((float) living.getVelocity().length(),living.getVelocity());
+                    }
+
+                }
+                else{
+                    {
+                        //MinecraftClient.getInstance().inGameHud.getChatHud().addMessage(Text.literal(""+getWorld().getGameRules().getBoolean(PetbottleRocket.SHOULD_ROCKET_DEAL_KNOCKBACK_SELF)+" "+(getWorld().isClient()?"client":"server")));
+
+                        if(getWorld().getGameRules().getBoolean(PetbottleRocket.SHOULD_ROCKET_DEAL_KNOCKBACK_SELF) && !getWorld().isClient()){
+                            living.takeKnockback(this.getVelocity().length()/2.0f,this.getRotationVector().multiply(-1).x,this.getRotationVector().multiply(-1).z);
+                            living.velocityModified = true;
+
+
+                            if (living instanceof ServerPlayerEntity && living.velocityModified) {
+                                ((ServerPlayerEntity)living).networkHandler.sendPacket(new EntityVelocityUpdateS2CPacket(living));
+                                living.velocityModified = false;
+                            }
+                        }
+                        //living.updateVelocity((float) living.getVelocity().length(),living.getVelocity());
+                    }
+                }
             }
         }
         return super.collidesWith(other);
@@ -243,14 +270,15 @@ public class WaterRocketEntity extends Entity implements Ownable {
 
     @Override
     public ActionResult interact(PlayerEntity player, Hand hand) {
-        if(player.getStackInHand(hand).isEmpty()&&player.isSneaking() && !getDataTracker().get(START_FLYING))
+        if(player.getStackInHand(hand).isEmpty()&&player.isSneaking() && !getDataTracker().get(START_FLYING) && (getDataTracker().get(ALLOW_ADVENTURE) || player.getAbilities().allowModifyWorld))
         {
-            if(!player.isCreative())
+            if(!player.isCreative() && this.getWorld().getGameRules().getBoolean(PetbottleRocket.SHOULD_ROCKET_DROP_MATERIALS)&& !getWorld().isClient())
             {
                 player.giveItemStack(new ItemStack(PetbottleRocket.BOTTLE_CAP_ITEM));
             }
             this.getDataTracker().set(START_FLYING,true);
             this.getDataTracker().set(DROP_ITEMS,!player.isCreative());
+            this.setOwner(player);
             this.setVelocity(ModUtils.getRandomCenterZeroFloat(random,1.4f),1,ModUtils.getRandomCenterZeroFloat(random,1.4f));
             return ActionResult.SUCCESS;
         }
@@ -260,9 +288,10 @@ public class WaterRocketEntity extends Entity implements Ownable {
     @Override
     protected void initDataTracker() {
         dataTracker.startTracking(START_FLYING,false);
+        dataTracker.startTracking(ALLOW_ADVENTURE,false);
         dataTracker.startTracking(DROP_ITEMS,true);
-        dataTracker.startTracking(RANDOM_YAW_ADD,ModUtils.getRandomCenterZeroFloat(random,ANGLE_DEVIATION));
-        dataTracker.startTracking(RANDOM_PITCH_ADD,ModUtils.getRandomCenterZeroFloat(random,ANGLE_DEVIATION));
+        dataTracker.startTracking(RANDOM_YAW_ADD,ModUtils.getRandomCenterZeroFloat(random,getWorld().getGameRules().getInt(PetbottleRocket.ROCKET_DEVIATION)));
+        dataTracker.startTracking(RANDOM_PITCH_ADD,ModUtils.getRandomCenterZeroFloat(random,getWorld().getGameRules().getInt(PetbottleRocket.ROCKET_DEVIATION)));
         dataTracker.startTracking(FUEL,7);
         dataTracker.startTracking(MAX_FUEL,7);
         dataTracker.startTracking(FLY_TICK,0);
@@ -271,6 +300,7 @@ public class WaterRocketEntity extends Entity implements Ownable {
     @Override
     protected void readCustomDataFromNbt(NbtCompound nbt) {
         dataTracker.set(START_FLYING,nbt.getBoolean("started_flying"));
+        dataTracker.set(ALLOW_ADVENTURE,nbt.getBoolean("allow_adventure_interaction"));
         dataTracker.set(DROP_ITEMS,nbt.getBoolean("drop_items"));
         dataTracker.set(FUEL,nbt.getInt("fuel"));
         dataTracker.set(MAX_FUEL,nbt.getInt("max_fuel"));
@@ -285,6 +315,7 @@ public class WaterRocketEntity extends Entity implements Ownable {
     protected void writeCustomDataToNbt(NbtCompound nbt) {
         nbt.putBoolean("started_flying",dataTracker.get(START_FLYING));
         nbt.putBoolean("drop_items",dataTracker.get(DROP_ITEMS));
+        nbt.putBoolean("allow_adventure_interaction",dataTracker.get(ALLOW_ADVENTURE));
         nbt.putInt("fuel",dataTracker.get(FUEL));
         nbt.putInt("max_fuel",dataTracker.get(MAX_FUEL));
         nbt.putInt("fly_tick",dataTracker.get(FLY_TICK));
