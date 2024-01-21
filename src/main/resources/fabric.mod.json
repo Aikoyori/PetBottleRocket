@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "petbottlerocket",
   "version": "${version}",
-  "name": "PetbottleRocket",
+  "name": "PET Bottle Rocket",
   "description": "Make a Water Bottle Rocket! Inspired by STEM Learning.",
   "authors": ["Aikoyori"],
   "contact": {

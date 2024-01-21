@@ -1,6 +1,8 @@
 package xyz.aikoyori.petbottlerocket;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.gamerule.v1.GameRuleFactory;
+import net.fabricmc.fabric.api.gamerule.v1.GameRuleRegistry;
 import net.fabricmc.fabric.api.item.v1.FabricItemSettings;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.fabricmc.fabric.api.loot.v2.LootTableEvents;
@@ -29,6 +31,7 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import net.minecraft.world.GameRules;
 import xyz.aikoyori.petbottlerocket.entity.WaterRocketEntity;
 import xyz.aikoyori.petbottlerocket.item.WaterBottleItem;
 import xyz.aikoyori.petbottlerocket.item.WaterRocketItem;
@@ -54,6 +57,18 @@ public class PetbottleRocket implements ModInitializer {
     public static final Item ROCKET_CAP_ITEM = new Item(new FabricItemSettings());
     public static final RegistryKey<DamageType> ROCKET_HIT_DAMAGE = RegistryKey.of(RegistryKeys.DAMAGE_TYPE, ModUtils.makeID("rocket_hit"));
 
+    public static final GameRules.Key<GameRules.BooleanRule> SHOULD_ROCKET_DROP_MATERIALS =
+            GameRuleRegistry.register("petBottleRocket.shouldRocketDropMaterial", GameRules.Category.MISC, GameRuleFactory.createBooleanRule(true));
+    public static final GameRules.Key<GameRules.BooleanRule> SHOULD_ROCKET_DEAL_DAMAGE =
+            GameRuleRegistry.register("petBottleRocket.shouldRocketDealDamage", GameRules.Category.MISC, GameRuleFactory.createBooleanRule(true));
+    public static final GameRules.Key<GameRules.BooleanRule> SHOULD_ROCKET_DEAL_KNOCKBACK_SELF =
+            GameRuleRegistry.register("petBottleRocket.shouldRocketDealKnockbackToSelf", GameRules.Category.MISC, GameRuleFactory.createBooleanRule(true));
+    public static final GameRules.Key<GameRules.BooleanRule> SHOULD_ROCKET_DEAL_KNOCKBACK_OTHERS =
+            GameRuleRegistry.register("petBottleRocket.shouldRocketDealKnockbackToOthers", GameRules.Category.MISC, GameRuleFactory.createBooleanRule(true));
+    public static final GameRules.Key<GameRules.BooleanRule> ALLOW_ROCKET_PLACEMENT_IN_ADVENTURE =
+            GameRuleRegistry.register("petBottleRocket.allowRocketPlacementInAdventure", GameRules.Category.MISC, GameRuleFactory.createBooleanRule(false));
+    public static final GameRules.Key<GameRules.BooleanRule> ALLOW_ROCKET_THROWING =
+            GameRuleRegistry.register("petBottleRocket.allowRocketThrowing", GameRules.Category.MISC, GameRuleFactory.createBooleanRule(true));
     public static final ItemGroup PET_BOTTLE_MOD_GROUP = FabricItemGroup.builder()
             .icon(()->new ItemStack(WATER_ROCKET_ITEM))
             .displayName(Text.translatable("itemGroup.petbottlerocket.water_rocket"))

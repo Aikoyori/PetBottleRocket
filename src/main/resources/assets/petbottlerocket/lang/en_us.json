@@ -11,5 +11,12 @@
   "entity.petbottlerocket.water_rocket": "Water Rocket",
   "itemGroup.petbottlerocket.water_rocket": "PET Bottle Rocket",
 
-  "death.attack.rocket_hit": "%1$s got absolutely boosted"
+  "death.attack.rocket_hit": "%1$s got absolutely boosted",
+
+  "gamerule.petBottleRocket.shouldRocketDropMaterial": "Rocket drops materials" ,
+  "gamerule.petBottleRocket.shouldRocketDealDamage": "Rocket Deals Damage",
+  "gamerule.petBottleRocket.shouldRocketDealKnockbackToSelf": "Rocket Deals knockback to user",
+  "gamerule.petBottleRocket.shouldRocketDealKnockbackToOthers": "Rocket Deals knockback to others",
+  "gamerule.petBottleRocket.allowRocketPlacementInAdventure":  "Allows Rockets to be placed in Adventure Mode",
+  "gamerule.petBottleRocket.allowRocketThrowing": "Allows Rockets to be thrown"
 }

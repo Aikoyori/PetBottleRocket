@@ -206,12 +206,14 @@ public class WaterRocketEntity extends Entity implements Ownable {
         if(other.canHit() && other.canBeHitByProjectile() && this.getDataTracker().get(START_FLYING))
         {
 
-            if(!Objects.equals(other.getUuid(),ownerUuid)){
+            if(!Objects.equals(other.getUuid(),ownerUuid) && getWorld().getGameRules().getBoolean(PetbottleRocket.SHOULD_ROCKET_DEAL_DAMAGE)){
                 // don't do damage if owner
                 other.damage(ModUtils.damageOf(getWorld(),PetbottleRocket.ROCKET_HIT_DAMAGE,this,owner), (float) (2f*this.getVelocity().length()));
             }
             if(other instanceof LivingEntity living &&
-                    (!(Objects.equals(other.getUuid(),ownerUuid) || (other instanceof PlayerEntity && (other.isSneaking())))))
+                    ((!(Objects.equals(other.getUuid(),ownerUuid) && getWorld().getGameRules().getBoolean(PetbottleRocket.SHOULD_ROCKET_DEAL_KNOCKBACK_OTHERS))
+                            || (other instanceof PlayerEntity && (other.isSneaking())  && getWorld().getGameRules().getBoolean(PetbottleRocket.SHOULD_ROCKET_DEAL_KNOCKBACK_SELF))
+                    )))
             {
                 living.takeKnockback(this.getVelocity().length()/2.0f,this.getRotationVector().multiply(-1).x,this.getRotationVector().multiply(-1).z);
             }
@@ -225,9 +227,12 @@ public class WaterRocketEntity extends Entity implements Ownable {
     }
 
     private void dropIngredients(){
+        if(this.getWorld().getGameRules().getBoolean(PetbottleRocket.SHOULD_ROCKET_DROP_MATERIALS))
+        {
 
-        this.dropStack(new ItemStack(PetbottleRocket.PLASTIC_SCRAP_ITEM,4));
-        this.dropStack(new ItemStack(Items.PAPER,6));
+            this.dropStack(new ItemStack(PetbottleRocket.PLASTIC_SCRAP_ITEM,4));
+            this.dropStack(new ItemStack(Items.PAPER,6));
+        }
     }
 
     @Nullable

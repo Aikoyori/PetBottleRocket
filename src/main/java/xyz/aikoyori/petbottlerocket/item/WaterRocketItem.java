@@ -10,10 +10,13 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Vec3i;
+import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
 import xyz.aikoyori.petbottlerocket.PetbottleRocket;
 import xyz.aikoyori.petbottlerocket.entity.WaterRocketEntity;
@@ -40,25 +43,46 @@ public class WaterRocketItem extends Item {
 
     @Override
     public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
-        if(user.getStackInHand(hand).getItem() == PetbottleRocket.WATER_ROCKET_ITEM)
+        HitResult hitResult = raycast(world, user, RaycastContext.FluidHandling.NONE);
+        if(user.getStackInHand(hand).getItem() == PetbottleRocket.WATER_ROCKET_ITEM  )
         {
-
-            if(!user.isCreative())
+            if(world.getGameRules().getBoolean(PetbottleRocket.ALLOW_ROCKET_THROWING))
             {
-                user.giveItemStack(new ItemStack(PetbottleRocket.BOTTLE_CAP_ITEM));
+                if(!user.isCreative() && world.getGameRules().getBoolean(PetbottleRocket.SHOULD_ROCKET_DROP_MATERIALS))
+                {
+                    user.giveItemStack(new ItemStack(PetbottleRocket.BOTTLE_CAP_ITEM));
+                }
+                Vec3d pos = user.getEyePos().add(user.getRotationVector().normalize().multiply(0.5));
+                WaterRocketEntity waterRocketEntity = WaterRocketEntity.makeRocket(world,pos
+                        ,user.getYaw(),user.getPitch());
+                waterRocketEntity.setOwner(user);
+                waterRocketEntity.setVelocity(user.getRotationVector().normalize().multiply(1));
+                waterRocketEntity.getDataTracker().set(WaterRocketEntity.START_FLYING,true);
+                waterRocketEntity.getDataTracker().set(WaterRocketEntity.DROP_ITEMS,!user.isCreative());
+                world.spawnEntity(waterRocketEntity);
+                world.playSound(pos.x,pos.y,pos.z, SoundEvents.ENTITY_ARROW_SHOOT, SoundCategory.NEUTRAL,4,1,true);
+                user.getStackInHand(hand).decrement(1);
+                //user.setStackInHand(hand,)));
+                return TypedActionResult.success(user.getStackInHand(hand));
             }
-            Vec3d pos = user.getEyePos().add(user.getRotationVector().normalize().multiply(0.5));
-            WaterRocketEntity waterRocketEntity = WaterRocketEntity.makeRocket(world,pos
-                    ,user.getYaw(),user.getPitch());
-            waterRocketEntity.setOwner(user);
-            waterRocketEntity.setVelocity(user.getRotationVector().normalize().multiply(1));
-            waterRocketEntity.getDataTracker().set(WaterRocketEntity.START_FLYING,true);
-            waterRocketEntity.getDataTracker().set(WaterRocketEntity.DROP_ITEMS,!user.isCreative());
-            world.spawnEntity(waterRocketEntity);
-            world.playSound(pos.x,pos.y,pos.z, SoundEvents.ENTITY_ARROW_SHOOT, SoundCategory.NEUTRAL,4,1,true);
-            user.getStackInHand(hand).decrement(1);
+            if(world.getGameRules().getBoolean(PetbottleRocket.ALLOW_ROCKET_PLACEMENT_IN_ADVENTURE) && !user.getAbilities().allowModifyWorld)
+            {
+                if(hitResult.getType() == HitResult.Type.BLOCK)
+                {
+                    BlockHitResult bhr = (BlockHitResult) hitResult;
+                    Vec3d pos = bhr.getBlockPos().add(bhr.getSide().getVector()).toCenterPos();
+
+                    WaterRocketEntity waterRocketEntity = WaterRocketEntity.makeRocket(world,pos
+                            ,0,-90);
+                    waterRocketEntity.setOwner(user);
+                    waterRocketEntity.getDataTracker().set(WaterRocketEntity.DROP_ITEMS,!user.isCreative());
+                    world.spawnEntity(waterRocketEntity);
+                    world.playSound(pos.x,pos.y,pos.z, SoundEvents.ENTITY_ARROW_SHOOT, SoundCategory.NEUTRAL,4,1,true);
+                    user.getStackInHand(hand).decrement(1);
                     //user.setStackInHand(hand,)));
-            return TypedActionResult.success(user.getStackInHand(hand));
+                    return TypedActionResult.success(user.getStackInHand(hand));
+                }
+            }
         }
         return super.use(world, user, hand);
     }
